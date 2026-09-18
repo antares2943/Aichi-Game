@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>鍛造マイスター｜よきハガネから</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; overflow:hidden; }
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    background:#0a0b0d; color:#eef1f4;
+    display:flex; justify-content:center; align-items:center;
+    touch-action:none; user-select:none;
+  }
+  #wrap{
+    position:relative;
+    width:min(100vw,460px); height:min(100vh,780px);
+    overflow:hidden; background:linear-gradient(180deg,#191d23 0%,#0e1013 55%,#0a0b0d 100%);
+  }
+  canvas{ display:block; width:100%; height:100%; }
+
+  .hud{ position:absolute; top:0; left:0; right:0; padding:14px 18px 0; pointer-events:none; }
+  .row{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .label{ font-size:11px; letter-spacing:.12em; color:#7d8794; }
+  .score{ font-size:30px; font-weight:800; line-height:1; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .rcol{ text-align:right; }
+  .rank{ display:inline-block; font-size:12px; font-weight:800; letter-spacing:.06em;
+    padding:4px 12px; border-radius:99px; border:1px solid currentColor; }
+  .combo{ font-size:13px; color:#ff9a4d; font-weight:700; min-height:18px; margin-top:6px; }
+  .combo b{ font-size:20px; }
+
+  .qwrap{ margin-top:12px; }
+  .qbar{ height:9px; border-radius:99px; background:#22272e; overflow:hidden; box-shadow:inset 0 0 0 1px #2f3843; }
+  .qfill{ height:100%; width:100%; border-radius:99px;
+    background:linear-gradient(90deg,#d1341f,#ff7a2f,#ffc24d); transition:width .18s ease; }
+
+  .partline{ display:flex; justify-content:space-between; align-items:baseline; margin-top:10px; }
+  .partname{ font-size:14px; font-weight:700; color:#cfd6dd; }
+  .partcount{ font-size:12px; color:#7d8794; }
+
+  .toast{
+    position:absolute; left:50%; top:30%; transform:translate(-50%,-50%) scale(.7);
+    color:#ffe9c2; font-weight:900; font-size:30px; letter-spacing:.05em;
+    text-shadow:0 0 18px rgba(255,150,60,.8); opacity:0; pointer-events:none;
+    transition:opacity .12s, transform .12s;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+
+  .banner{
+    position:absolute; left:50%; top:48%; transform:translate(-50%,-42%);
+    width:86%; max-width:360px; background:rgba(20,14,10,.94);
+    border:1px solid #ff8a3a; border-radius:14px; padding:16px 18px; text-align:center;
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:4;
+    box-shadow:0 10px 40px rgba(255,120,40,.35);
+  }
+  .banner.show{ opacity:1; transform:translate(-50%,-50%); }
+  .banner .done{ font-size:17px; font-weight:800; color:#ffce7a; }
+  .banner .triv{ font-size:13px; color:#d4c7b6; line-height:1.7; margin-top:8px; }
+  .banner .triv span{ color:#ff9a4d; font-weight:700; }
+  .banner .hint{ font-size:12px; color:#8b949e; margin-top:12px; letter-spacing:.06em; }
+
+  .screen{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:center; text-align:center;
+    gap:15px; padding:34px 34px 24px; background:rgba(8,9,11,.9); backdrop-filter:blur(4px); z-index:5;
+    overflow-y:auto;
+  }
+  .screen.hidden{ display:none; }
+  .eyebrow{ font-size:12px; letter-spacing:.22em; color:#ff8a3a; font-weight:700; }
+  .title{ font-size:33px; font-weight:900; letter-spacing:.02em; line-height:1.15; }
+  .motto{ font-size:15px; color:#aeb6bf; line-height:1.8; }
+  .motto .em{ color:#ffc24d; font-weight:700; }
+  .how{ font-size:13px; color:#8b949e; line-height:1.9; max-width:300px; }
+  .hi{ font-size:13px; color:#ffce7a; font-weight:700; letter-spacing:.04em; }
+  .newrec{ color:#ff6a2a; font-weight:900; }
+  .final{ font-size:60px; font-weight:900; color:#ffc24d; line-height:1; }
+  .finalsub{ font-size:14px; color:#aeb6bf; line-height:1.9; }
+  .finalsub b{ color:#eef1f4; }
+  .btnrow{ display:flex; flex-direction:column; gap:10px; align-items:center; }
+  button{
+    font-family:inherit; font-size:17px; font-weight:800; letter-spacing:.04em;
+    color:#161a1f; background:linear-gradient(180deg,#ffca5a,#ff9a3d);
+    border:none; border-radius:99px; padding:15px 46px; cursor:pointer;
+    box-shadow:0 6px 0 #b56a1f;
+  }
+  button:active{ transform:translateY(4px); box-shadow:0 2px 0 #b56a1f; }
+  button.ghost{
+    color:#cfd6dd; background:transparent; border:1px solid #3a434e;
+    box-shadow:none; font-size:14px; padding:12px 30px;
+  }
+  button.ghost:active{ transform:translateY(1px); background:rgba(255,255,255,.05); }
+  .disclaimer{ margin-top:6px; font-size:10px; color:#5a636e; letter-spacing:.05em; }
+
+  .hotbadge{
+    position:absolute; left:50%; top:130px; transform:translate(-50%,-6px) scale(.8);
+    background:linear-gradient(180deg,#ff8a2a,#ff3d1a); color:#fff;
+    font-weight:900; font-size:15px; letter-spacing:.06em; padding:7px 18px;
+    border-radius:99px; box-shadow:0 0 24px rgba(255,90,30,.8);
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:4;
+  }
+  .hotbadge.show{ opacity:1; transform:translate(-50%,0) scale(1); animation:hotpulse .7s ease-in-out infinite; }
+  @keyframes hotpulse{ 50%{ box-shadow:0 0 34px rgba(255,120,40,1);} }
+
+  .impurity{
+    position:absolute; left:50%; top:52%; transform:translate(-50%,-50%) scale(.9);
+    background:rgba(40,8,8,.92); border:2px solid #ff3b30; color:#ffdede;
+    font-weight:900; font-size:19px; letter-spacing:.04em; text-align:center;
+    padding:14px 22px; border-radius:14px; box-shadow:0 0 30px rgba(255,50,40,.6);
+    opacity:0; pointer-events:none; transition:opacity .12s; z-index:4; white-space:nowrap;
+  }
+  .impurity.show{ opacity:1; animation:warn .35s steps(2) infinite; }
+  .impurity small{ display:block; font-size:12px; font-weight:700; color:#ff9a9a; margin-top:5px; letter-spacing:.02em; }
+  @keyframes warn{ 50%{ border-color:#ff8a3a; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div class="hud">
+    <div class="row">
+      <div>
+        <div class="label">スコア</div>
+        <div class="score" id="score">0</div>
+      </div>
+      <div class="rcol">
+        <span class="rank" id="rank" style="color:#9aa4ae">見習い</span>
+        <div class="combo" id="combo"></div>
+      </div>
+    </div>
+    <div class="qwrap">
+      <div class="label">品質ゲージ</div>
+      <div class="qbar"><div class="qfill" id="qfill"></div></div>
+    </div>
+    <div class="partline">
+      <div class="partname" id="partname">エンジン部品</div>
+      <div class="partcount" id="partcount">クルマ 0 台 完成</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="hotbadge" id="hotBadge">🔥 熱いモード ×2</div>
+  <div class="impurity" id="impurityWarn">⚠ 不純物混入！<small>叩くな！やり過ごせ</small></div>
+
+  <div class="banner" id="banner">
+    <div class="done" id="bannerDone"></div>
+    <div class="triv" id="bannerTriv"></div>
+    <div class="hint">タップで再開 ▶</div>
+  </div>
+
+  <div class="screen" id="start">
+    <div class="eyebrow">愛知製鋼 鍛造マイスター</div>
+    <div class="title">よきクルマは、<br>よきハガネから。</div>
+    <div class="motto">熱した特殊鋼を <span class="em">ちょうどいい温度</span> で叩き、<br>クルマの部品を鍛え上げよう。</div>
+    <div class="how">オレンジの帯(適温)に白い針が来た瞬間に<b>タップ</b>(PCはスペースキー)。<br>連続で決めると炉温が上がり、満タンで<b>熱いモード（スコア×2）</b>。<br>「不純物混入！」の赤い警告中は<b>叩かず我慢</b>。<br>後半は適温の帯が動いたり2つに割れたりします。</div>
+    <div class="hi" id="hiStart"></div>
+    <button id="startBtn">鍛造スタート</button>
+    <div class="disclaimer">※愛知製鋼をテーマにした非公式のファン制作ゲームです</div>
+  </div>
+
+  <div class="screen hidden" id="end">
+    <div class="eyebrow" id="endTitle">作業終了</div>
+    <div class="final" id="final">0</div>
+    <div class="hi" id="hiEnd"></div>
+    <div class="finalsub" id="endMsg"></div>
+    <div class="btnrow">
+      <button id="retryBtn">もう一度</button>
+      <button id="titleBtn" class="ghost">タイトルへ戻る</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('wrap');
+let W,H,dpr;
+function resize(){
+  dpr = window.devicePixelRatio||1;
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+const PARTS = ['エンジン部品','トランスミッション部品','ドライブシャフト','e-Axle部品','クランクシャフト'];
+const PARTS_PER_CAR = 8;
+
+const RANKS = [
+  {min:0,  name:'見習い',        col:'#9aa4ae'},
+  {min:2,  name:'一人前',        col:'#7fd3ff'},
+  {min:5,  name:'熟練工',        col:'#ffc24d'},
+  {min:9,  name:'名工',          col:'#ff8a3a'},
+  {min:14, name:'鍛造マイスター', col:'#ff5a2a'}
+];
+function rankFor(n){ let r=RANKS[0]; for(const x of RANKS) if(n>=x.min) r=x; return r; }
+function rankIndex(n){ let idx=0; RANKS.forEach((x,i)=>{ if(n>=x.min) idx=i; }); return idx; }
+
+const TRIVIA = [
+  'トヨタグループで唯一の素材メーカー。',
+  '電気炉で鉄スクラップを溶かし、再び鋼へ。資源循環のモノづくり。',
+  '創業は1940年、本社は愛知県東海市。',
+  '超高感度の「MIセンサ」は微弱な磁気を精密に検知する。',
+  '入れ歯を固定する「歯科用磁性アタッチメント」も作っている。',
+  '磁気マーカ「GPMS」で自動運転車の走行を支援。',
+  '田んぼの生育を助ける「農業用鉄供給材」もある。',
+  '建築構造用ステンレス鋼はインフラや建物を支える。',
+  'ルーツは豊田喜一郎が設けた製鋼部門にさかのぼる。',
+  'e-Axleなど電動車向けの部品も手がけている。'
+];
+let trivIdx = 0;
+
+const G = {
+  running:false, paused:false, score:0, quality:100, combo:0, bestCombo:0,
+  partsDone:0, partIdx:0, progress:0, need:6, rankI:0,
+  pos:0, dir:1, speed:0.00095,
+  sweetH:0.15,
+  zoneMode:'static', zoneCenters:[0.5], moveAmp:0, moveFreq:0.002, moveT:0,
+  furnace:0, hotUntil:0,
+  impurityActive:false, impurityUntil:0, nextImpurity:0,
+  hammer:0, shake:0, flash:0, flashCol:'#ff5a2a', flashK:0.5
+};
+let sparks=[], rings=[], embers=[];
+
+// ---------- high score (safe) ----------
+let hiMem = 0;
+function loadHi(){ try{ return parseInt(localStorage.getItem('aichi_tanzou_hi')||'0',10)||0; }catch(e){ return hiMem; } }
+function saveHi(v){ hiMem=v; try{ localStorage.setItem('aichi_tanzou_hi',String(v)); }catch(e){} }
+
+// ---------- audio (synth metallic hits) ----------
+let actx=null, master=null;
+function initAudio(){
+  try{
+    if(!actx){ actx=new (window.AudioContext||window.webkitAudioContext)();
+      master=actx.createGain(); master.gain.value=0.5; master.connect(actx.destination); }
+    if(actx.state==='suspended') actx.resume();
+  }catch(e){}
+}
+function metalHit(baseFreq,dur,vol,bright){
+  if(!actx) return;
+  const t=actx.currentTime;
+  const len=Math.floor(actx.sampleRate*0.06);
+  const buf=actx.createBuffer(1,len,actx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
+  const src=actx.createBufferSource(); src.buffer=buf;
+  const bp=actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=bright; bp.Q.value=0.9;
+  const ng=actx.createGain(); ng.gain.setValueAtTime(vol*0.55,t);
+  ng.gain.exponentialRampToValueAtTime(0.001,t+0.09);
+  src.connect(bp); bp.connect(ng); ng.connect(master);
+  src.start(t); src.stop(t+0.1);
+  const parts=[1,2.71,4.07,5.9];
+  parts.forEach((p,i)=>{
+    const o=actx.createOscillator(); o.type='sine'; o.frequency.value=baseFreq*p;
+    const g=actx.createGain(); const a=vol*(0.5/(i+1));
+    g.gain.setValueAtTime(a,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.02);
+  });
+}
+function sndGood(heat){ metalHit(220+heat*150, 0.16, 0.42, 1000+heat*2400); }
+function sndPerfect(){ metalHit(520,0.30,0.55,4200); metalHit(880,0.22,0.28,6000); }
+function sndMiss(){ metalHit(110,0.12,0.4,320); }
+function sndRankUp(){
+  if(!actx) return; const t=actx.currentTime;
+  [523,659,784,1046].forEach((f,i)=>{
+    const o=actx.createOscillator(); o.type='triangle'; o.frequency.value=f;
+    const g=actx.createGain(); g.gain.setValueAtTime(0.0001,t+i*0.08);
+    g.gain.exponentialRampToValueAtTime(0.25,t+i*0.08+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,t+i*0.08+0.35);
+    o.connect(g); g.connect(master); o.start(t+i*0.08); o.stop(t+i*0.08+0.4);
+  });
+}
+
+// ---------- game flow ----------
+const HOT_MS = 6000;
+function scoreMul(){ return performance.now() < G.hotUntil ? 2 : 1; }
+function hotActive(){ return performance.now() < G.hotUntil; }
+
+function setDifficulty(){
+  G.speed = Math.min(0.0027, 0.00095 + G.partsDone*0.00016);
+  G.sweetH = Math.max(0.062, 0.15 - G.partsDone*0.009);
+  G.moveT = 0;
+  // choose sweet-zone pattern based on how far the player has come
+  const p = G.partsDone;
+  let pool = ['static'];
+  if(p>=2) pool = ['static','moving'];
+  if(p>=4) pool = ['static','moving','moving','split'];
+  if(p>=7) pool = ['moving','moving','split','split'];
+  G.zoneMode = pool[Math.floor(Math.random()*pool.length)];
+  if(G.zoneMode==='split'){
+    // two zones, a little narrower, kept apart
+    G.sweetH = Math.max(0.05, G.sweetH*0.8);
+    const a = 0.20 + Math.random()*0.12;
+    const b = 0.66 + Math.random()*0.12;
+    G.zoneCenters = [a, b];
+    G.moveAmp = 0;
+  } else if(G.zoneMode==='moving'){
+    const base = 0.5;
+    G.zoneCenters = [base];
+    G.moveAmp = 0.20 + Math.min(0.12, p*0.015);   // sweeps wider later
+    G.moveFreq = 0.0016 + Math.min(0.0016, p*0.0002);
+  } else {
+    G.zoneCenters = [0.28 + Math.random()*0.44];
+    G.moveAmp = 0;
+  }
+}
+
+// actual zone positions this frame (applies movement); returns [{c,h,core}]
+function computeZones(){
+  const h = G.sweetH, core = h*0.34;
+  if(G.zoneMode==='moving'){
+    let c = G.zoneCenters[0] + Math.sin(G.moveT*G.moveFreq)*G.moveAmp;
+    c = Math.max(h, Math.min(1-h, c));
+    return [{c,h,core}];
+  }
+  return G.zoneCenters.map(c=>({c,h,core}));
+}
+function reset(){
+  G.running=true; G.paused=false; G.score=0; G.quality=100; G.combo=0; G.bestCombo=0;
+  G.partsDone=0; G.partIdx=0; G.progress=0; G.need=6; G.rankI=0;
+  G.pos=0; G.dir=1; G.hammer=0; G.shake=0; G.flash=0;
+  G.furnace=0; G.hotUntil=0;
+  G.impurityActive=false; G.impurityUntil=0; G.nextImpurity=performance.now()+5000+Math.random()*3000;
+  sparks=[]; rings=[]; embers=[]; trivIdx=0;
+  document.getElementById('banner').classList.remove('show');
+  document.getElementById('hotBadge').classList.remove('show');
+  document.getElementById('impurityWarn').classList.remove('show');
+  setDifficulty(); updateHud();
+}
+function updateHud(){
+  document.getElementById('score').textContent=G.score;
+  document.getElementById('qfill').style.width=Math.max(0,G.quality)+'%';
+  document.getElementById('partname').textContent=PARTS[G.partIdx];
+  document.getElementById('partcount').textContent='クルマ '+Math.floor(G.partsDone/PARTS_PER_CAR)+' 台 完成';
+  const r=RANKS[G.rankI];
+  const rel=document.getElementById('rank'); rel.textContent=r.name; rel.style.color=r.col;
+  const cel=document.getElementById('combo');
+  cel.innerHTML = G.combo>=2 ? ('<b>'+G.combo+'</b> コンボ') : '';
+}
+function toast(txt){
+  const t=document.getElementById('toast');
+  t.textContent=txt; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),650);
+}
+function showBanner(part){
+  const b=document.getElementById('banner');
+  document.getElementById('bannerDone').textContent='「'+part+'」完成！  +300';
+  document.getElementById('bannerTriv').innerHTML='<span>豆知識</span> '+TRIVIA[trivIdx%TRIVIA.length];
+  trivIdx++;
+  b.classList.add('show');
+  G.paused=true;
+  G._pauseStart=performance.now();
+}
+function resumeFromBanner(){
+  document.getElementById('banner').classList.remove('show');
+  const dtp=performance.now()-(G._pauseStart||performance.now());
+  G.hotUntil+=dtp; G.nextImpurity+=dtp; if(G.impurityActive) G.impurityUntil+=dtp;
+  G.paused=false;
+}
+
+function makeSparks(x,y,n,strong){
+  for(let i=0;i<n;i++){
+    const a=-Math.PI/2+(Math.random()-0.5)*(strong?3.1:2.0);
+    const s=(strong?4.5:2.4)+Math.random()*(strong?5.5:3);
+    sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,
+      col:Math.random()<0.5?'#ffd76b':'#ff8a3a'});
+  }
+}
+
+function addFurnace(v){
+  if(hotActive()) return;               // furnace locked full during hot mode
+  G.furnace = Math.min(100, G.furnace + v);
+  if(G.furnace>=100){
+    G.hotUntil = performance.now() + HOT_MS;
+    document.getElementById('hotBadge').classList.add('show');
+    toast('🔥 熱いモード！'); sndRankUp();
+    G.flash=1; G.flashCol='#ff7a2a'; G.flashK=0.3;
+  }
+}
+function coolFurnace(){ if(!hotActive()) G.furnace = Math.max(0, G.furnace*0.4); }
+
+function startImpurity(){
+  G.impurityActive=true;
+  G.impurityUntil = performance.now() + (1300 - Math.min(500,G.partsDone*40));
+  document.getElementById('impurityWarn').classList.add('show');
+  sndMiss();
+}
+function endImpurity(avoided){
+  G.impurityActive=false;
+  document.getElementById('impurityWarn').classList.remove('show');
+  G.nextImpurity = performance.now() + 5000 + Math.random()*4000;
+  if(avoided){
+    G.score += 40*scoreMul(); G.quality=Math.min(100,G.quality+3);
+    toast('セーフ！ +'+(40*scoreMul())); updateHud();
+  }
+}
+
+function strike(){
+  if(!G.running) return;
+  const ax=W*0.5, ay=H*0.46;
+  const heat=Math.max(0.1,G.quality/100);
+  G.hammer=1;
+
+  // struck during impurity = mistake
+  if(G.impurityActive){
+    G.combo=0; G.quality-=25; coolFurnace();
+    G.shake=1; G.flash=1; G.flashCol='#c8102e'; G.flashK=0.5;
+    sndMiss(); toast('不純物を叩いた！');
+    endImpurity(false);
+    if(G.quality<=0){ G.quality=0; updateHud(); gameOver(); return; }
+    updateHud(); return;
+  }
+
+  const mul = scoreMul();
+  const zones = computeZones();
+  let best=Infinity, bz=zones[0];
+  for(const z of zones){ const d=Math.abs(G.pos-z.c); if(d<best){ best=d; bz=z; } }
+
+  if(best<=bz.h){
+    const perfect = best<=bz.core;
+    G.combo++; G.bestCombo=Math.max(G.bestCombo,G.combo);
+    G.score += ((perfect?120:50)+G.combo*(perfect?10:5))*mul;
+    G.quality=Math.min(100,G.quality+(perfect?4:2));
+    addFurnace(perfect?16:9);
+    makeSparks(ax,ay,perfect?26:12,perfect);
+    if(perfect){
+      rings.push({x:ax,y:ay,r:6,life:1});
+      G.flash=1; G.flashCol='#ffb057'; G.flashK=0.22;
+      toast(mul>1?'PERFECT! ×2':'PERFECT!'); sndPerfect();
+    } else { sndGood(heat); }
+    G.progress++;
+    if(G.progress>=G.need){
+      const done=PARTS[G.partIdx];
+      G.partsDone++; G.score+=300*mul; G.progress=0;
+      G.partIdx=(G.partIdx+1)%PARTS.length;
+      setDifficulty();
+      showBanner(done);
+      const ni=rankIndex(G.partsDone);
+      if(ni>G.rankI){ G.rankI=ni; toast('昇格！ '+RANKS[ni].name); sndRankUp(); G.flash=1; G.flashCol=RANKS[ni].col; G.flashK=0.3; }
+    }
+  } else {
+    G.combo=0; G.quality-=25; coolFurnace();
+    G.shake=1; G.flash=1; G.flashCol='#c8102e'; G.flashK=0.5;
+    sndMiss();
+    if(G.quality<=0){ G.quality=0; updateHud(); gameOver(); return; }
+  }
+  updateHud();
+}
+
+// ---------- drawing ----------
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+function drawBackground(dt){
+  const rk = G.running ? G.rankI : 0;
+  // furnace glow at bottom, stronger with rank
+  const gi = 0.12 + rk*0.09;
+  const g=ctx.createRadialGradient(W/2,H*1.02,20,W/2,H*1.02,H*0.7);
+  g.addColorStop(0,'rgba(255,110,40,'+gi+')');
+  g.addColorStop(1,'rgba(255,110,40,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // embers
+  const spawn = (rk*0.6+0.2);
+  if(Math.random()<spawn*dt/16){
+    embers.push({x:Math.random()*W, y:H+10, vy:-(0.3+Math.random()*0.9),
+      s:1+Math.random()*2.4, life:1, drift:(Math.random()-0.5)*0.4});
+  }
+  for(let i=embers.length-1;i>=0;i--){
+    const e=embers[i];
+    e.y+=e.vy; e.x+=e.drift; e.life-=0.006;
+    if(e.life<=0||e.y<-10){ embers.splice(i,1); continue; }
+    ctx.globalAlpha=e.life*0.7;
+    ctx.fillStyle= Math.random()<0.3?'#ffd76b':'#ff7a3a';
+    ctx.beginPath(); ctx.arc(e.x,e.y,e.s,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+function drawAnvil(cx,cy){
+  ctx.save(); ctx.translate(cx,cy);
+  ctx.fillStyle='#3a424c'; ctx.strokeStyle='#20262d'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-34,44); ctx.lineTo(34,44); ctx.lineTo(24,64); ctx.lineTo(-24,64); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillRect(-14,20,28,26);
+  ctx.beginPath(); ctx.moveTo(-58,4); ctx.lineTo(58,4); ctx.lineTo(48,22); ctx.lineTo(-40,22); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#4a535e'; ctx.fillRect(-58,-8,116,12); ctx.strokeRect(-58,-8,116,12);
+  ctx.beginPath(); ctx.moveTo(58,-8); ctx.lineTo(86,-2); ctx.lineTo(58,4); ctx.closePath();
+  ctx.fillStyle='#3a424c'; ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function drawBillet(cx,cy){
+  const heat=Math.max(0.05,G.quality/100);
+  const bw=96,bh=20;
+  const top=`rgb(${Math.round(lerp(150,255,heat))},${Math.round(lerp(165,245,heat))},${Math.round(lerp(185,210,heat))})`;
+  const mid=`rgb(${Math.round(lerp(74,255,heat))},${Math.round(lerp(90,150,heat))},${Math.round(lerp(110,50,heat))})`;
+  const bot=`rgb(${Math.round(lerp(48,200,heat))},${Math.round(lerp(60,80,heat))},${Math.round(lerp(74,25,heat))})`;
+  const grd=ctx.createLinearGradient(0,cy-14,0,cy+6);
+  grd.addColorStop(0,top); grd.addColorStop(0.5,mid); grd.addColorStop(1,bot);
+  ctx.save();
+  ctx.shadowColor='rgba(255,140,50,'+(0.55*heat+0.12)+')';
+  ctx.shadowBlur=30*heat+6;
+  roundRect(cx-bw/2,cy-14,bw,bh,6); ctx.fillStyle=grd; ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='rgba(255,240,200,.75)';
+  for(let i=0;i<G.progress;i++){
+    ctx.fillRect(cx-bw/2+8+i*((bw-16)/G.need), cy-16, 4, 3);
+  }
+}
+function drawHammer(cx,cy){
+  const dip=Math.sin(Math.min(1,G.hammer)*Math.PI);
+  const raise=70; const hy=cy-raise+dip*raise*0.9; const ang=-0.5+dip*0.5;
+  ctx.save(); ctx.translate(cx,hy); ctx.rotate(ang);
+  ctx.fillStyle='#7a5a3a'; ctx.fillRect(-4,6,8,64);
+  ctx.fillStyle='#5a636e'; ctx.strokeStyle='#33393f'; ctx.lineWidth=2;
+  roundRect(-30,-14,60,26,4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#6c7681'; ctx.fillRect(-30,-14,14,26);
+  ctx.restore();
+}
+function drawGauge(){
+  const gy=H*0.72, gx=W*0.12, gw=W*0.76, gh=20;
+  roundRect(gx,gy,gw,gh,gh/2); ctx.fillStyle='#22272e'; ctx.fill();
+  const zones=computeZones();
+  const danger=G.impurityActive;
+  for(const z of zones){
+    const sx=gx+(z.c-z.h)*gw, sw=(z.h*2)*gw;
+    const sg=ctx.createLinearGradient(sx,0,sx+sw,0);
+    if(danger){ sg.addColorStop(0,'#7a1512'); sg.addColorStop(0.5,'#ff3b30'); sg.addColorStop(1,'#7a1512'); }
+    else { sg.addColorStop(0,'#ff6a1f'); sg.addColorStop(0.5,'#ffc24d'); sg.addColorStop(1,'#ff6a1f'); }
+    roundRect(sx,gy,sw,gh,gh/2); ctx.fillStyle=sg; ctx.fill();
+    roundRect(gx+(z.c-z.core)*gw,gy+4,(z.core*2)*gw,gh-8,4);
+    ctx.fillStyle= danger?'rgba(255,220,220,.5)':'rgba(255,255,255,.55)'; ctx.fill();
+  }
+  const mx=gx+G.pos*gw;
+  ctx.save(); ctx.shadowColor='#fff'; ctx.shadowBlur=10; ctx.fillStyle='#fff';
+  roundRect(mx-3,gy-8,6,gh+16,3); ctx.fill(); ctx.restore();
+  ctx.fillStyle='#7d8794'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+  ctx.fillText(danger?'今は叩くな！':'適温(オレンジ)で叩く', W/2, gy+gh+24);
+}
+
+function drawFurnaceGauge(){
+  const w=12, x=W-24, y1=H*0.30, hgt=H*0.34;
+  // track
+  roundRect(x,y1,w,hgt,6); ctx.fillStyle='#22272e'; ctx.fill();
+  let frac, glow;
+  if(hotActive()){ frac=Math.max(0,(G.hotUntil-performance.now())/HOT_MS); glow=true; }
+  else { frac=G.furnace/100; glow=false; }
+  const fh=hgt*frac;
+  const g=ctx.createLinearGradient(0,y1+hgt,0,y1);
+  g.addColorStop(0,'#d1341f'); g.addColorStop(0.6,'#ff7a2f'); g.addColorStop(1,'#ffe08a');
+  ctx.save();
+  if(glow){ ctx.shadowColor='#ff7a2f'; ctx.shadowBlur=18; }
+  roundRect(x,y1+hgt-fh,w,fh,6); ctx.fillStyle=g; ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#7d8794'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('炉温', x+w/2, y1-8);
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(now-last,50); last=now;
+  if(G.running && !G.paused){
+    G.pos+=G.dir*G.speed*dt;
+    if(G.pos>=1){ G.pos=1; G.dir=-1; }
+    if(G.pos<=0){ G.pos=0; G.dir=1; }
+    G.moveT += dt;
+
+    // impurity events (from the 2nd part onward)
+    if(G.impurityActive){
+      if(now>=G.impurityUntil) endImpurity(true);   // survived without striking
+    } else if(G.partsDone>=1 && now>=G.nextImpurity){
+      startImpurity();
+    }
+
+    // hot mode expiry
+    if(G.furnace>=100 && !hotActive()){
+      G.furnace=0;
+      document.getElementById('hotBadge').classList.remove('show');
+    }
+  }
+  if(G.hammer>0) G.hammer=Math.max(0,G.hammer-dt/170);
+  if(G.shake>0) G.shake=Math.max(0,G.shake-dt/220);
+  if(G.flash>0) G.flash=Math.max(0,G.flash-dt/260);
+
+  ctx.clearRect(0,0,W,H);
+  drawBackground(dt);
+
+  const ox=(Math.random()-0.5)*G.shake*12, oy=(Math.random()-0.5)*G.shake*12;
+  ctx.save(); ctx.translate(ox,oy);
+  const cx=W*0.5, cy=H*0.46;
+  drawAnvil(cx,cy+34); drawBillet(cx,cy); drawHammer(cx,cy-16);
+
+  for(let i=sparks.length-1;i>=0;i--){
+    const p=sparks[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.32; p.life-=0.035;
+    if(p.life<=0){ sparks.splice(i,1); continue; }
+    ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.col;
+    ctx.fillRect(p.x-1.5,p.y-1.5,3,3); ctx.globalAlpha=1;
+  }
+  for(let i=rings.length-1;i>=0;i--){
+    const r=rings[i]; r.r+=3.4; r.life-=0.045;
+    if(r.life<=0){ rings.splice(i,1); continue; }
+    ctx.globalAlpha=Math.max(0,r.life); ctx.strokeStyle='#ffd076'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,7); ctx.stroke(); ctx.globalAlpha=1;
+  }
+
+  if(G.running) drawGauge();
+  ctx.restore();
+
+  if(G.running) drawFurnaceGauge();
+
+  // hot-mode warm tint + edge glow
+  if(hotActive()){
+    const pulse = 0.10 + 0.05*Math.sin(performance.now()/120);
+    ctx.globalAlpha=pulse; ctx.fillStyle='#ff6a20'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+    const vg=ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.7);
+    vg.addColorStop(0,'rgba(255,120,40,0)'); vg.addColorStop(1,'rgba(255,90,20,.35)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  }
+
+  if(G.flash>0){
+    ctx.globalAlpha=G.flash*G.flashK; ctx.fillStyle=G.flashCol;
+    ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- input ----------
+function onStrike(e){
+  if(e){e.preventDefault();} initAudio();
+  if(G.paused){ resumeFromBanner(); return; }
+  strike();
+}
+canvas.addEventListener('touchstart',onStrike,{passive:false});
+canvas.addEventListener('mousedown',onStrike);
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); initAudio(); if(G.paused){ resumeFromBanner(); } else if(G.running){ strike(); } }});
+
+// ---------- screens ----------
+const startS=document.getElementById('start'), endS=document.getElementById('end');
+function refreshHiStart(){
+  const hi=loadHi();
+  document.getElementById('hiStart').textContent = hi>0 ? ('ハイスコア  '+hi) : '';
+}
+function begin(){ initAudio(); reset(); startS.classList.add('hidden'); endS.classList.add('hidden'); }
+function gameOver(){
+  G.running=false;
+  const hi=loadHi(); const isNew=G.score>hi;
+  if(isNew) saveHi(G.score);
+  const cars=Math.floor(G.partsDone/PARTS_PER_CAR);
+  const pct=Math.round((G.partsDone%PARTS_PER_CAR)/PARTS_PER_CAR*100);
+  document.getElementById('final').textContent=G.score;
+  document.getElementById('endTitle').textContent='称号  '+RANKS[G.rankI].name;
+  document.getElementById('hiEnd').innerHTML = isNew ? '<span class="newrec">★ 新記録！</span>' : ('ハイスコア  '+loadHi());
+  document.getElementById('endMsg').innerHTML =
+    '部品 <b>'+G.partsDone+'</b> 個を鍛造 ・ 最大 <b>'+G.bestCombo+'</b> コンボ<br>'+
+    'クルマ <b>'+cars+'</b> 台 完成（次の1台まで '+pct+'%）';
+  endS.classList.remove('hidden');
+}
+function toTitle(){
+  G.running=false; G.paused=false;
+  endS.classList.add('hidden');
+  document.getElementById('banner').classList.remove('show');
+  document.getElementById('hotBadge').classList.remove('show');
+  document.getElementById('impurityWarn').classList.remove('show');
+  refreshHiStart();
+  startS.classList.remove('hidden');
+}
+document.getElementById('startBtn').addEventListener('click',begin);
+document.getElementById('retryBtn').addEventListener('click',begin);
+document.getElementById('titleBtn').addEventListener('click',toTitle);
+refreshHiStart();
+</script>
+</body>
+</html>
